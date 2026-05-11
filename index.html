@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FluxRoutine Ultra Max</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            /* Warna Sesuai Permintaan Nuriz */
+            --pagi-bg: linear-gradient(135deg, #fff9c4 0%, #ffffff 100%);
+            --siang-bg: linear-gradient(135deg, #c8e6c9 0%, #fff9c4 100%);
+            --sore-bg: linear-gradient(135deg, #1a237e 0%, #4caf50 100%);
+            --malam-bg: linear-gradient(135deg, #000000 0%, #1a237e 100%);
+            
+            --glass: rgba(255, 255, 255, 0.25);
+            --glass-border: rgba(255, 255, 255, 0.4);
+            --primary: #1a237e;
+            --accent: #4caf50;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: var(--pagi-bg);
+            transition: background 2s ease-in-out;
+            padding: 20px;
+            color: #2c3e50;
+            overflow-x: hidden;
+        }
+
+        /* --- Dark Mode Helper --- */
+        body.is-dark { color: #ecf0f1; }
+        body.is-dark .glass-card { background: rgba(0, 0, 0, 0.35); border-color: rgba(255, 255, 255, 0.1); }
+        body.is-dark .action-btn { background: rgba(255, 255, 255, 0.1); color: white; }
+
+        /* --- Setup Screen --- */
+        #setup-screen {
+            position: fixed; inset: 0; background: #fff; z-index: 9999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.8s ease;
+        }
+
+        .glass-card {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 30px;
+            padding: 25px;
+            width: 100%;
+            max-width: 500px;
+            margin-bottom: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.05);
+        }
+
+        /* --- Typography --- */
+        .clock { font-size: 3.5rem; font-weight: 800; text-align: center; letter-spacing: -2px; margin-bottom: 5px; }
+        .session-badge { text-align: center; font-weight: 800; letter-spacing: 3px; font-size: 0.9rem; opacity: 0.7; text-transform: uppercase; }
+
+        /* --- Water Section --- */
+        .water-container { display: flex; flex-direction: column; gap: 10px; }
+        .water-bar-bg { width: 100%; height: 12px; background: rgba(0,0,0,0.1); border-radius: 10px; overflow: hidden; }
+        .water-fill { height: 100%; background: linear-gradient(90deg, #3498db, #2980b9); width: 0%; transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+        /* --- Action Buttons --- */
+        .grid-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; }
+        button, .action-btn {
+            border: none; border-radius: 18px; padding: 16px; font-weight: 800; cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); text-align: center;
+        }
+        button:active { transform: scale(0.95); }
+        .btn-main { background: var(--primary); color: white; box-shadow: 0 10px 20px rgba(26, 35, 126, 0.2); width: 100%; }
+        .btn-water { background: rgba(52, 152, 219, 0.15); color: #2980b9; font-size: 0.9rem; }
+
+        /* --- Log Items --- */
+        .log-item {
+            background: rgba(255,255,255,0.3); border-radius: 20px; padding: 15px; margin-bottom: 10px;
+            display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.2);
+            animation: slideIn 0.5s ease forwards;
+        }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+
+        /* --- Modals --- */
+        .modal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(10px);
+            display: flex; justify-content: center; align-items: center; padding: 20px; z-index: 5000;
+            opacity: 0; visibility: hidden; transition: 0.4s;
+        }
+        .modal.active { opacity: 1; visibility: visible; }
+        .modal-content {
+            background: white; border-radius: 35px; padding: 30px; width: 100%; max-width: 500px;
+            max-height: 90vh; overflow-y: auto; color: #333; transform: scale(0.9); transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .modal.active .modal-content { transform: scale(1); }
+
+        input, select {
+            width: 100%; padding: 15px; border-radius: 15px; border: 2px solid #eee; margin: 10px 0; font-size: 1rem; outline: none;
+        }
+
+        /* --- Chart Styling --- */
+        .chart-box { height: 220px; margin: 20px 0; }
+
+        #btn-selesai-hari-ini { display: none; background: linear-gradient(135deg, #e74c3c, #c0392b); }
+
+        .search-results { max-height: 200px; overflow-y: auto; border-radius: 15px; background: #f9f9f9; margin-bottom: 10px; }
+        .search-item { padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; font-weight: 600; }
+        .search-item:hover { background: #eef2ff; color: var(--primary); }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <h1 style="font-size: 2.5rem; font-weight: 800; color: #1a237e; margin-bottom: 10px;">FluxRoutine</h1>
+        <p style="color: #7f8c8d; margin-bottom: 30px; font-weight: 600;">Ultra Max Edition</p>
+        <div style="width: 85%; max-width: 350px;">
+            <input type="text" id="user-name-input" placeholder="Siapa namamu?">
+            <button class="btn-main" onclick="saveInitialName()">Mulai Hidup Sehat</button>
+        </div>
+    </div>
+
+    <div class="header glass-card" style="display: flex; justify-content: space-between; align-items: center;">
+        <h2 id="display-name" style="font-weight: 800;">Hi, [User]!</h2>
+        <button onclick="openModal('modal-settings')" style="padding: 10px 15px; background: rgba(0,0,0,0.05); color: inherit; font-size: 0.8rem; margin: 0; width: auto;">⚙️ Settings</button>
+    </div>
+
+    <div class="glass-card">
+        <div class="clock" id="live-clock">00:00</div>
+        <div class="session-badge" id="session-label">MEMUAT...</div>
+    </div>
+
+    <div class="glass-card">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+            <h3 style="font-size: 1rem;">💧 Hidrasi Harian</h3>
+            <span id="water-text" style="font-weight: 800;">0.0 L</span>
+        </div>
+        <div class="water-bar-bg">
+            <div id="water-bar" class="water-fill"></div>
+        </div>
+        <div class="grid-btns">
+            <button class="btn-water" onclick="addWater(250)">+250ml</button>
+            <button class="btn-water" onclick="addWater(600)">+600ml</button>
+        </div>
+    </div>
+
+    <div class="glass-card">
+        <h3 style="margin-bottom: 15px; font-size: 1rem;">Aktivitas Sesi Ini</h3>
+        <div class="grid-btns">
+            <div class="action-btn" onclick="openModal('modal-makan')" style="background: rgba(255,255,255,0.4);">🍱 Makan</div>
+            <div class="action-btn" onclick="openModal('modal-olahraga')" style="background: rgba(255,255,255,0.4);">🏃 Olahraga</div>
+        </div>
+        <div id="logs-container" style="margin-top: 20px;">
+            </div>
+    </div>
+
+    <button id="btn-selesai-hari-ini" class="btn-main" onclick="showDailyRecap()" style="max-width: 500px; margin-bottom: 20px;">🏆 SELESAI HARI INI</button>
+
+    <div id="modal-makan" class="modal">
+        <div class="modal-content">
+            <h2>Input Makanan</h2>
+            <input type="text" id="food-search" placeholder="Cari: Nasi, Telur, Mie, Seblak..." oninput="filterFood()">
+            <div id="search-results" class="search-results"></div>
+            
+            <div id="food-input-area" style="display: none;">
+                <h3 id="selected-food-title" style="color: var(--primary); margin: 10px 0;"></h3>
+                <label id="food-unit-label" style="font-size: 0.8rem; font-weight: 800; color: #7f8c8d;"></label>
+                <input type="number" id="food-qty" placeholder="Jumlah...">
+                <button class="btn-main" onclick="confirmFood()">Tambahkan</button>
+            </div>
+            <button onclick="closeModal()" style="background:none; color: #999; margin-top: 10px;">Batal</button>
+        </div>
+    </div>
+
+    <div id="modal-recap" class="modal">
+        <div class="modal-content">
+            <h2 style="text-align: center;">Rekap Ultra Max</h2>
+            <div class="chart-box">
+                <canvas id="weeklyChart"></canvas>
+            </div>
+            <div id="recap-stats" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                </div>
+            <div id="recap-list" style="background: #f9f9f9; padding: 15px; border-radius: 20px; font-size: 0.9rem; max-height: 200px; overflow-y: auto; margin-bottom: 15px;"></div>
+            <button class="btn-main" onclick="copyRecap()">📋 Salin Rekap Teks</button>
+            <button onclick="closeModal()" style="background:none; color: #999; margin-top: 10px; width: 100%;">Tutup</button>
+        </div>
+    </div>
+
+    <div id="modal-settings" class="modal">
+        <div class="modal-content">
+            <h2>Pengaturan Waktu</h2>
+            <p style="font-size: 0.8rem; margin-bottom: 15px;">Sesuaikan jadwal sesi harianmu:</p>
+            <label>Pagi:</label><input type="time" id="t-pagi">
+            <label>Siang:</label><input type="time" id="t-siang">
+            <label>Sore:</label><input type="time" id="t-sore">
+            <label>Malam:</label><input type="time" id="t-malam">
+            <button class="btn-main" onclick="saveSettings()">Simpan Perubahan</button>
+            <button onclick="closeModal()" style="background:none; color: #999; margin-top: 10px; width: 100%;">Batal</button>
+        </div>
+    </div>
+
+    <script>
+        // --- DATABASE MAKANAN RAKSASA ---
+        const foodDB = [
+            { n: "Nasi Putih", u: "gram", cal: 1.3, prot: 0.02 },
+            { n: "Nasi Merah", u: "gram", cal: 1.1, prot: 0.03 },
+            { n: "Nasi Goreng", u: "porsi", cal: 450, prot: 12 },
+            { n: "Nasi Uduk", u: "porsi", cal: 380, prot: 8 },
+            { n: "Telur Rebus", u: "butir", cal: 70, prot: 6 },
+            { n: "Telur Ceplok", u: "butir", cal: 90, prot: 6 },
+            { n: "Telur Dadar", u: "butir", cal: 110, prot: 7 },
+            { n: "Ayam Goreng", u: "potong", cal: 245, prot: 20 },
+            { n: "Ayam Bakar", u: "potong", cal: 190, prot: 22 },
+            { n: "Mie Instan", u: "porsi", cal: 380, prot: 7 },
+            { n: "Mie Goreng (Abang²)", u: "porsi", cal: 500, prot: 10 },
+            { n: "Bakso", u: "mangkok", cal: 350, prot: 15 },
+            { n: "Tempe Goreng", u: "potong", cal: 110, prot: 6 },
+            { n: "Tahu Goreng", u: "potong", cal: 80, prot: 5 },
+            { n: "Pepes Ikan", u: "porsi", cal: 150, prot: 18 },
+            { n: "Pepes Telur Ikan", u: "porsi", cal: 180, prot: 16 },
+            { n: "Roti Tawar", u: "lembar", cal: 70, prot: 2 },
+            { n: "Roti Gandum", u: "lembar", cal: 85, prot: 4 },
+            { n: "Seblak Komplit", u: "porsi", cal: 450, prot: 12 },
+            { n: "Martabak Telur", u: "potong", cal: 200, prot: 8 },
+            { n: "Gorengan (Bakwan/Tahu)", u: "biji", cal: 140, prot: 2 },
+            { n: "Susu Sapi", u: "gelas", cal: 150, prot: 8 },
+            { n: "Ikan Lele Goreng", u: "ekor", cal: 200, prot: 18 },
+            { n: "Sayur Sop", u: "mangkok", cal: 100, prot: 3 },
+            { n: "Sate Ayam", u: "tusuk", cal: 35, prot: 4 },
+              { n: "Dimsum", u: "biji", cal: 50, prot: 3 },
+    { n: "Teh Manis", u: "gelas", cal: 70, prot: 0 },
+    { n: "Teh Manis", u: "liter", cal: 350, prot: 0 },
+    { n: "Telur Gulung", u: "tusuk", cal: 45, prot: 3 },
+    { n: "Cireng", u: "biji", cal: 70, prot: 0.5 },
+    { n: "Rujak Petis", u: "porsi", cal: 250, prot: 4 },
+    { n: "Batagor", u: "potong", cal: 60, prot: 2 },
+    { n: "Siomay", u: "biji", cal: 55, prot: 3 },
+    { n: "Cilok", u: "biji", cal: 25, prot: 0.2 },
+    { n: "Pisang Goreng", u: "biji", cal: 150, prot: 1.5 },
+    { n: "Kopi Susu", u: "gelas", cal: 180, prot: 3 },
+    { n: "Kerupuk Putih", u: "biji", cal: 65, prot: 0.1 },
+    { n: "Susu Cokelat", u: "kotak", cal: 120, prot: 4 },
+    { n: "Kentang Goreng", u: "porsi", cal: 300, prot: 3 },
+    { n: "Onde-onde", u: "biji", cal: 100, prot: 2 },
+    { n: "Es Jeruk", u: "gelas", cal: 90, prot: 0.5 },
+    { n: "Pempek Kapal Selam", u: "biji", cal: 340, prot: 12 },
+    { n: "Jasuke", u: "porsi", cal: 200, prot: 4 },
+    { n: "Seblak Ceker", u: "porsi", cal: 350, prot: 10 },
+    { n: "Basreng", u: "bungkus", cal: 200, prot: 2 },
+              // --- REQUEST SPESIFIK ---
+    { n: "Brownies", u: "potong", cal: 150, prot: 2 },
+    { n: "Nasi Liwet", u: "porsi", cal: 400, prot: 8 },
+    { n: "Cumi Hitam", u: "porsi", cal: 250, prot: 25 },
+    { n: "Sambal Terasi", u: "sdm", cal: 20, prot: 0.5 },
+    { n: "Sambal Bawang", u: "sdm", cal: 35, prot: 0.2 },
+    { n: "Sate Usus", u: "tusuk", cal: 40, prot: 4 },
+    { n: "Sate Telur Puyuh", u: "tusuk", cal: 60, prot: 4 },
+    { n: "Klepon", u: "biji", cal: 40, prot: 0.5 },
+    { n: "Daging Dendeng", u: "potong", cal: 180, prot: 15 },
+    { n: "Daging Goreng", u: "potong", cal: 200, prot: 18 },
+    { n: "Singkong Keju", u: "potong", cal: 160, prot: 2 },
+    { n: "Bakso Urat", u: "mangkok", cal: 400, prot: 18 }, // Bakso biasa sudah ada, ini variannya
+    { n: "Mie Ayam", u: "mangkok", cal: 420, prot: 15 },
+    
+    // --- JAJANAN PASAR & KUE TRADISIONAL ---
+    { n: "Lupis", u: "biji", cal: 110, prot: 1 },
+    { n: "Cenil", u: "porsi", cal: 130, prot: 0.5 },
+    { n: "Putu Ayu", u: "biji", cal: 80, prot: 1.5 },
+    { n: "Kue Lumpur", u: "biji", cal: 120, prot: 2 },
+    { n: "Lemper Ayam", u: "biji", cal: 130, prot: 4 },
+    { n: "Kue Sus", u: "biji", cal: 150, prot: 3 },
+    { n: "Pastel", u: "biji", cal: 140, prot: 3 },
+    { n: "Risol Mayo", u: "biji", cal: 180, prot: 4 },
+    { n: "Martabak Manis", u: "potong", cal: 250, prot: 4 },
+    { n: "Dadar Gulung", u: "biji", cal: 100, prot: 1.5 },
+    { n: "Bika Ambon", u: "potong", cal: 130, prot: 1 },
+    { n: "Pukis", u: "biji", cal: 90, prot: 2 },
+
+    // --- MAKANAN PINGGIR JALAN & KAKI LIMA ---
+    { n: "Tahu Bulat", u: "biji", cal: 35, prot: 1.5 },
+    { n: "Tempe Mendoan", u: "lembar", cal: 80, prot: 4 },
+    { n: "Ketoprak", u: "porsi", cal: 450, prot: 12 },
+    { n: "Gado-gado", u: "porsi", cal: 350, prot: 14 },
+    { n: "Pecel Sayur", u: "porsi", cal: 250, prot: 10 },
+    { n: "Tahu Tek", u: "porsi", cal: 400, prot: 15 },
+    { n: "Mie Ayam Bakso", u: "mangkok", cal: 550, prot: 20 },
+    { n: "Kwetiau Goreng", u: "porsi", cal: 480, prot: 12 },
+    { n: "Bihun Goreng", u: "porsi", cal: 400, prot: 8 },
+    { n: "Nasi Kuning", u: "porsi", cal: 380, prot: 7 }, // Tanpa lauk
+    
+    // --- MENU RESTORAN / WARTEG / BERAT ---
+    { n: "Soto Ayam", u: "mangkok", cal: 300, prot: 15 },
+    { n: "Soto Daging", u: "mangkok", cal: 350, prot: 18 },
+    { n: "Rawon", u: "mangkok", cal: 380, prot: 20 },
+    { n: "Sate Kambing", u: "tusuk", cal: 60, prot: 5 },
+    { n: "Sate Padang", u: "porsi", cal: 450, prot: 18 }, // Hitungan porsi (sate + ketupat)
+    { n: "Rendang Daging", u: "potong", cal: 250, prot: 22 },
+    { n: "Gulai Ayam", u: "potong", cal: 280, prot: 18 },
+    { n: "Ayam Geprek", u: "potong", cal: 320, prot: 22 }, // Udah sama minyak cabe
+    { n: "Ikan Bakar", u: "ekor", cal: 220, prot: 25 },
+    { n: "Sayur Asem", u: "mangkok", cal: 80, prot: 2 },
+    { n: "Capcay", u: "porsi", cal: 150, prot: 5 },
+    { n: "Tongseng Kambing", u: "mangkok", cal: 400, prot: 20 },
+    
+    // --- LAIN-LAIN / MINUMAN ---
+    { n: "Es Teh Kampul", u: "gelas", cal: 80, prot: 0 },
+    { n: "Kopi Hitam", u: "gelas", cal: 10, prot: 0 }, // Tanpa gula
+    { n: "Es Dawet", u: "gelas", cal: 250, prot: 2 },
+    { n: "Es Campur", u: "mangkok", cal: 300, prot: 3 },
+              // --- TAMBAHAN SPESIFIK ---
+    { n: "Tahu Kocek", u: "biji", cal: 45, prot: 1.8 }, // Estimasi per potongan tahu goreng + bumbunya
+    { n: "Takoyaki (Abang-abang)", u: "biji", cal: 50, prot: 1.5 }, // Lebih banyak tepung & isi sosis/bakso
+    { n: "Takoyaki (Restoran/Mall)", u: "biji", cal: 75, prot: 4 }  // Lebih besar, ada gurita asli & topping katsuobushi
+
+
+
+        ];
+
+        let state = {
+            name: "",
+            water: 0,
+            logs: [],
+            settings: { pagi: "05:00", siang: "11:00", sore: "15:30", malam: "18:30" },
+            history: [0, 0, 0, 0, 0, 0, 0] // 7 days of water
+        };
+
+        let selectedFood = null;
+        let currentSession = "";
+        let chartInstance = null;
+
+        // --- CORE LOGIC ---
+        function init() {
+            const saved = localStorage.getItem('flux_ultra_max_state');
+            if (saved) {
+                state = JSON.parse(saved);
+                document.getElementById('setup-screen').style.display = 'none';
+            }
+            
+            // Check Daily Reset
+            const lastDate = localStorage.getItem('flux_last_date');
+            const today = new Date().toLocaleDateString();
+            if (lastDate !== today) {
+                // Shift history and reset daily
+                state.history.shift();
+                state.history.push(state.water / 1000);
+                state.water = 0;
+                state.logs = [];
+                localStorage.setItem('flux_last_date', today);
+                saveState();
+            }
+
+            updateUI();
+            setInterval(updateUI, 1000);
+            renderLogs();
+        }
+
+        function saveState() {
+            localStorage.setItem('flux_ultra_max_state', JSON.stringify(state));
+        }
+
+        function updateUI() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('live-clock').innerText = timeStr;
+            document.getElementById('display-name').innerText = `Hi, ${state.name}!`;
+
+            // Session Logic
+            const currentTime = now.getHours() * 60 + now.getMinutes();
+            const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+
+            let bg = "", session = "", dark = false;
+            if (currentTime >= toMin(state.settings.pagi) && currentTime < toMin(state.settings.siang)) {
+                session = "Pagi"; bg = "var(--pagi-bg)";
+            } else if (currentTime >= toMin(state.settings.siang) && currentTime < toMin(state.settings.sore)) {
+                session = "Siang"; bg = "var(--siang-bg)";
+            } else if (currentTime >= toMin(state.settings.sore) && currentTime < toMin(state.settings.malam)) {
+                session = "Sore"; bg = "var(--sore-bg)"; dark = true;
+            } else {
+                session = "Malam"; bg = "var(--malam-bg)"; dark = true;
+            }
+
+            document.body.style.background = bg;
+            document.getElementById('session-label').innerText = `Sesi ${session}`;
+            currentSession = session;
+
+            if (dark) document.body.classList.add('is-dark');
+            else document.body.classList.remove('is-dark');
+
+            // 8 PM Rule
+            const btnSelesai = document.getElementById('btn-selesai-hari-ini');
+            if (now.getHours() >= 20 || now.getHours() < 4) btnSelesai.style.display = 'block';
+            else btnSelesai.style.display = 'none';
+
+            // Water UI
+            const liter = (state.water / 1000).toFixed(1);
+            document.getElementById('water-text').innerText = `${liter} L`;
+            let wPercent = (state.water / 2000) * 100;
+            document.getElementById('water-bar').style.width = `${Math.min(wPercent, 100)}%`;
+        }
+
+        // --- FOOD LOGIC ---
+        function filterFood() {
+            const q = document.getElementById('food-search').value.toLowerCase();
+            const res = document.getElementById('search-results');
+            res.innerHTML = "";
+            if (!q) return;
+
+            foodDB.filter(f => f.n.toLowerCase().includes(q)).forEach(f => {
+                const div = document.createElement('div');
+                div.className = 'search-item';
+                div.innerText = `${f.n} (${f.u})`;
+                div.onclick = () => {
+                    selectedFood = f;
+                    document.getElementById('selected-food-title').innerText = f.n;
+                    document.getElementById('food-unit-label').innerText = `Masukkan jumlah (${f.u}):`;
+                    document.getElementById('food-input-area').style.display = 'block';
+                    res.innerHTML = "";
+                };
+                res.appendChild(div);
+            });
+        }
+
+        function confirmFood() {
+            const qty = parseFloat(document.getElementById('food-qty').value);
+            if (!qty) return;
+
+            const log = {
+                id: Date.now(),
+                type: 'makan',
+                name: selectedFood.n,
+                qty: qty,
+                unit: selectedFood.u,
+                cal: Math.round(selectedFood.cal * qty),
+                prot: Math.round(selectedFood.prot * qty),
+                time: document.getElementById('live-clock').innerText,
+                session: currentSession
+            };
+
+            state.logs.push(log);
+            saveState();
+            renderLogs();
+            closeModal();
+        }
+
+        // --- WATER LOGIC ---
+        function addWater(ml) {
+            state.water += ml;
+            saveState();
+            updateUI();
+        }
+
+        // --- RENDER LOGS ---
+        function renderLogs() {
+            const cont = document.getElementById('logs-container');
+            const filtered = state.logs.filter(l => l.session === currentSession);
+            
+            if (filtered.length === 0) {
+                cont.innerHTML = "<p style='text-align:center; opacity:0.5; font-size:0.8rem;'>Belum ada aktivitas.</p>";
+                return;
+            }
+
+            cont.innerHTML = filtered.map(l => `
+                <div class="log-item">
+                    <div>
+                        <div style="font-weight:800;">${l.type === 'makan' ? '🍱' : '🏃'} ${l.name}</div>
+                        <div style="font-size:0.7rem; opacity:0.6;">${l.time} • ${l.qty} ${l.unit}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-weight:800; color:#e67e22;">${l.cal} kkal</div>
+                        <div style="font-size:0.7rem; font-weight:800; opacity:0.8;">${l.prot}g Protein</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // --- RECAP & CHART ---
+        function showDailyRecap() {
+            openModal('modal-recap');
+            
+            let tCal = 0, tProt = 0;
+            state.logs.forEach(l => { tCal += l.cal; tProt += l.prot; });
+
+            document.getElementById('recap-stats').innerHTML = `
+                <div style="background:#fff3e0; padding:15px; border-radius:20px; text-align:center;">
+                    <div style="font-size:0.7rem; font-weight:800; color:#e67e22;">KALORI</div>
+                    <div style="font-size:1.5rem; font-weight:800;">${tCal}</div>
+                </div>
+                <div style="background:#e8f5e9; padding:15px; border-radius:20px; text-align:center;">
+                    <div style="font-size:0.7rem; font-weight:800; color:#2e7d32;">PROTEIN</div>
+                    <div style="font-size:1.5rem; font-weight:800;">${tProt}g</div>
+                </div>
+            `;
+
+            document.getElementById('recap-list').innerHTML = state.logs.map(l => `• ${l.name}: ${l.cal} kkal`).join('<br>');
+
+            // Render Chart
+            const ctx = document.getElementById('weeklyChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['H-6', 'H-5', 'H-4', 'H-3', 'H-2', 'Kemarin', 'Hari Ini'],
+                    datasets: [{
+                        label: 'Air (Liter)',
+                        data: [...state.history.slice(0, 6), state.water/1000],
+                        borderColor: '#3498db',
+                        tension: 0.4,
+                        fill: true,
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)'
+                    }]
+                },
+                options: { maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+        }
+
+        function copyRecap() {
+            let tCal = 0, tProt = 0;
+            state.logs.forEach(l => { tCal += l.cal; tProt += l.prot; });
+            
+            let txt = `🌟 REKAP FLUXROUTINE ULTRA MAX 🌟\n`;
+            txt += `👤 Nama: ${state.name}\n📅 Tanggal: ${new Date().toLocaleDateString()}\n\n`;
+            txt += `💧 Air Putih: ${(state.water/1000).toFixed(1)} Liter\n`;
+            txt += `🔥 Total Kalori: ${tCal} kkal\n`;
+            txt += `🍗 Total Protein: ${tProt}g\n\n`;
+            txt += `📝 Rincian:\n` + state.logs.map(l => `- ${l.name} (${l.qty} ${l.unit}): ${l.cal} kkal`).join('\n');
+
+            navigator.clipboard.writeText(txt).then(() => alert("Rekap berhasil disalin ke clipboard!"));
+        }
+
+        // --- UTILS ---
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function closeModal() { 
+            document.querySelectorAll('.modal').forEach(m => m.classList.remove('active')); 
+            document.getElementById('food-input-area').style.display = 'none';
+            document.getElementById('food-search').value = "";
+        }
+
+        function saveInitialName() {
+            const val = document.getElementById('user-name-input').value;
+            if (!val) return;
+            state.name = val;
+            saveState();
+            document.getElementById('setup-screen').style.opacity = '0';
+            setTimeout(() => document.getElementById('setup-screen').style.display = 'none', 800);
+        }
+
+        function saveSettings() {
+            state.settings.pagi = document.getElementById('t-pagi').value;
+            state.settings.siang = document.getElementById('t-siang').value;
+            state.settings.sore = document.getElementById('t-sore').value;
+            state.settings.malam = document.getElementById('t-malam').value;
+            saveState();
+            closeModal();
+            updateUI();
+        }
+
+        window.onclick = (e) => { if (e.target.classList.contains('modal')) closeModal(); };
+
+        // Start
+        init();
+        document.getElementById('t-pagi').value = state.settings.pagi;
+        document.getElementById('t-siang').value = state.settings.siang;
+        document.getElementById('t-sore').value = state.settings.sore;
+        document.getElementById('t-malam').value = state.settings.malam;
+    </script>
+</body>
+</html>
+
